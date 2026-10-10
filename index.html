@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Base JS – Consola en el DOM</title>
+  <style>
+    :root { --bg:#0f172a; --panel:#111827; --ink:#e5e7eb; --muted:#94a3b8; --ok:#22c55e; --warn:#fbbf24; --err:#ef4444; --info:#38bdf8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: var(--bg); color: var(--ink); }
+    header { padding: 16px 20px; border-bottom: 1px solid #1f2937; }
+    h1 { margin: 0 0 6px; font-size: 18px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .toolbar { display:flex; gap:8px; padding: 10px 20px; border-bottom: 1px solid #1f2937;}
+    button { background:#0b1220; color:var(--ink); border:1px solid #334155; padding:8px 12px; border-radius:10px; cursor:pointer; }
+    button:hover { background:#111826; }
+    #console {
+      padding: 14px 20px; min-height: 40vh; max-height: 70vh; overflow:auto;
+      background: var(--panel); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .row { display:flex; gap:10px; align-items: flex-start; white-space: pre-wrap; word-break: break-word; margin: 6px 0; }
+    .tag { padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #334155; color:var(--muted); flex: none; }
+    .log .tag{ color:var(--ok); border-color:#14532d; }
+    .info .tag{ color:var(--info); border-color:#0b3b4d; }
+    .warn .tag{ color:var(--warn); border-color:#7c5c0a; }
+    .error .tag{ color:var(--err); border-color:#7f1d1d; }
+    .payload { flex:1; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Consola en el DOM</h1>
+    <div class="muted">Todo lo que envíes a <code>console.log/info/warn/error</code> aparece aquí abajo.</div>
+  </header>
+
+  <div class="toolbar">
+    <button id="btn-clear">Limpiar</button>
+    <button id="btn-demo">Demo rápida</button>
+  </div>
+
+  <main id="console" aria-live="polite" aria-label="Salida de consola"></main>
+
+  <script>
+    // --- Utilidad para formatear valores como texto legible
+    function formatValue(v) {
+      const type = Object.prototype.toString.call(v);
+      if (v instanceof Error) return v.stack || (v.name + ": " + v.message);
+      if (typeof v === "string") return v;
+      try { return JSON.stringify(v, (k, val) => (val === undefined ? "undefined" : val), 2); }
+      catch { return String(v); }
+    }
+
+    // --- Escribe una fila en el contenedor
+    const $out = document.getElementById("console");
+    function write(kind, args) {
+      const row = document.createElement("div");
+      row.className = `row ${kind}`;
+      const tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = kind.toUpperCase();
+      const payload = document.createElement("div");
+      payload.className = "payload";
+      payload.textContent = args.map(formatValue).join(" ");
+      row.append(tag, payload);
+      $out.appendChild(row);
+      // Auto-scroll
+      $out.scrollTop = $out.scrollHeight;
+    }
+
+    // --- Parchear métodos de consola para duplicar salida al DOM
+    (function patchConsole(){
+      const original = {
+        log: console.log.bind(console),
+        info: console.info.bind(console),
+        warn: console.warn.bind(console),
+        error: console.error.bind(console),
+        clear: console.clear.bind(console),
+      };
+      console.log = (...a) => { write("log", a); original.log(...a); };
+      console.info = (...a) => { write("info", a); original.info(...a); };
+      console.warn = (...a) => { write("warn", a); original.warn(...a); };
+      console.error = (...a) => { write("error", a); original.error(...a); };
+      console.clear = () => { $out.innerHTML = ""; original.clear(); };
+      // Capturar errores no controlados
+      window.addEventListener("error", (ev) => {
+        write("error", [ev.message + " @ " + ev.filename + ":" + ev.lineno + ":" + ev.colno]);
+      });
+      window.addEventListener("unhandledrejection", (ev) => {
+        write("error", ["Unhandled promise rejection:", ev.reason]);
+      });
+    })();
+
+    // --- Controles
+    document.getElementById("btn-clear").addEventListener("click", () => console.clear());
+    document.getElementById("btn-demo").addEventListener("click", () => {
+      console.log("Hola 👋 desde console.log");
+      console.info({ usuario: "Jorge", rol: "profesor", activos: true });
+      console.warn("Advertencia de ejemplo", [1,2,3]);
+      console.error(new Error("Error de ejemplo"));
+      // Async demo
+      setTimeout(() => console.log("Mensaje asíncrono tras 1s"), 1000);
+    });
+
+    // --- Aquí empieza tu código JS 👇 (borra/edita lo que quieras)
+    const inventario = [
+  {
+    nombre: "Audífonos profesionales",
+    precio: 2500,
+    stock: 30
+  },
+  {
+    nombre: "Teclado MIDI",
+    precio: 2000,
+    stock: 3
+  },
+  {
+    nombre: "Interfaz de audio",
+    precio: 2300,
+    stock: 0
+  },
+  {
+    nombre: "MPC sampler",
+    precio: 17000,
+    stock: 1
+  }
+];
+   const mostrarProductos = (inventario) => {
+   inventario.forEach((producto) => {
+    
+     console.log(`Nombre: ${producto.nombre}, Precio: $${producto.precio}, Stock: ${producto.stock} unidades`);
+
+    if (producto.stock === 0) {
+      console.warn("--> PRODUCTO AGOTADO");
+    } else if (producto.stock < 10) {
+      console.info("--> ÚLTIMAS UNIDADES DISPONIBLES");
+    }
+  });
+};
+    const calcularValorTotal = (inventario) => {
+  let valorTotal = 0;
+  inventario.forEach((producto) => {
+    valorTotal += producto.precio * producto.stock;
+  });
+  return valorTotal;
+};
+console.log("=== INVENTARIO ===");
+mostrarProductos(inventario);
+
+console.log("\n VALOR TOTAL ");
+const valorTotalInventario = calcularValorTotal(inventario);
+console.log(`El valor total del inventario es: $${valorTotalInventario}`);
+
+  </script>
+</body>
+</html>
